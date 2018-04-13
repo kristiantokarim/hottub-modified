@@ -30,6 +30,7 @@
 static uint64_t t0;
 static int connected;
 static char jvmpath[MAX_PATH_LEN + ID_LEN + 1];
+static int jvm_max_pool;
 
 void signal_handler(int signum)
 {
@@ -77,6 +78,7 @@ int main(int argc, char **argv, char **envp)
     for (i = 1; i < argc; i++) {
         if (strncmp(argv[i], "-hottub", 7) == 0) {
             hottub = 1;
+            jvm_max_pool =  strtol(getenv("JVM_POOL"),NULL, 10);
             break;
         }
     }
@@ -116,10 +118,10 @@ int run_hottub(char *id, args_info *args, char** envp)
     sprintf(jvmpath, "%s%s", datapath, id);
 
     int poolno;
-    for (poolno = 0; poolno < JVM_POOL_MAX; poolno++) {
+    for (poolno = 0; poolno < jvm_max_pool; poolno++) {
         int error;
         int try_connect = 0;
-
+        int is_parent = 0;
         /* add/update poolno to id and path */
         id[0] = '/';
         id[ID_LEN - 1] = '0' + poolno;
@@ -140,9 +142,11 @@ int run_hottub(char *id, args_info *args, char** envp)
                 //       have same std* fds
                 return exec_jvm(id, args->argc, args->argv);
             } else {
+                create_pid_file(CLIENT, getpid());
                 setup_signal_handling(pid);
                 create_pid_file(SERVER, pid);
                 try_connect = 1;
+                is_parent = 1;
             }
         } else if (errno == EEXIST) {
             pid = get_server_pid();
@@ -154,7 +158,7 @@ int run_hottub(char *id, args_info *args, char** envp)
             return -1;
         }
 
-        if (try_connect && create_pid_file(CLIENT, getpid()) == 0) {
+        if (try_connect && ( is_parent || (create_pid_file(CLIENT, getpid()) == 0) )) {
             int jvmfd;
             int i;
             pid_t server_pid = get_server_pid();

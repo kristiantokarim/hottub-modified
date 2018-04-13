@@ -4160,7 +4160,7 @@ bool InstanceKlass::should_record() {
     return false;
   }
   if (!class_loader_data()) {
-      tty->print_cr("[HotTub][warn][InstanceKlass::should_record] class %p with no class loader data or name", p2i(this), buf);
+      tty->print_cr("[HotTub][warn][InstanceKlass::should_record] class %p with no class loader data or name", p2i(this));
       return false;
   }
   if (InstanceKlass::must_reinit(buf)) {

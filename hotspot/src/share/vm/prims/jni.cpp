@@ -22,7 +22,7 @@
  * questions.
  *
  */
-
+#include <unistd.h> // for usleep
 #include "precompiled.hpp"
 #include "ci/ciReplay.hpp"
 #include "classfile/altHashing.hpp"
@@ -36,10 +36,12 @@
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #endif // INCLUDE_ALL_GCS
+#include "gc_implementation/parallelScavenge/psScavenge.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/gcLocker.inline.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/universe.inline.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceOop.hpp"
@@ -99,6 +101,10 @@
 static jint CurrentVersion = JNI_VERSION_1_8;
 static jint ret_val = 0;
 static jboolean hottub = false;
+
+static size_t eden_init;
+static size_t survivor_init;
+static size_t old_init;
 
 
 // The DT_RETURN_MARK macros create a scoped object to fire the dtrace
@@ -5350,7 +5356,6 @@ _JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_SetRetVal(jint code) {
 
 _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_InitHotTubVM(jint run_num) {
   hottub = true;
-
   if (run_num) {
     jlong t0 = os::javaTimeNanos();
 
@@ -5368,7 +5373,11 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_InitHotTubVM(jint run_num) {
     ThreadStateTransition::transition(thread, _thread_in_vm, _thread_in_native);
 
     tty->print("[hottub][info][JNI_InitHotTubVM] clinit_replay = %luns\n", t1 - t0);
-  }
+  } else {
+    eden_init = ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes();
+    survivor_init = ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes();
+    old_init = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes();
+  } 
 }
 
 _JNI_IMPORT_OR_EXPORT_ jboolean JNICALL JNI_IsHotTubVM() {
@@ -5435,7 +5444,49 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CleanHotTubVM(char *hottubid) {
       }
 
       jlong t0 = os::javaTimeNanos();
-      ((ParallelScavengeHeap *)Universe::heap())->collect(GCCause::_jvmti_force_gc);
+      int max_ratio = MaxHeapFreeRatio;
+      int min_ratio = MinHeapFreeRatio;
+      FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, 1);
+      FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, 1);
+      ParallelScavengeHeap * currHeap = (ParallelScavengeHeap *)Universe::heap();
+      size_t a = currHeap->old_gen()->capacity_in_bytes() 
+      + currHeap->young_gen()->eden_space()->capacity_in_bytes() 
+      + currHeap->young_gen()->from_space()->capacity_in_bytes() 
+      + currHeap->young_gen()->to_space()->capacity_in_bytes();
+      size_t b = a;
+      bool nowA = false;
+      int counterA = 0;
+      int counterB = 0;
+      while ((((currHeap->old_gen()->capacity_in_bytes() != old_init )
+        || (currHeap->young_gen()->eden_space()->capacity_in_bytes() != eden_init) 
+        || (currHeap->young_gen()->to_space()->capacity_in_bytes() != survivor_init)
+        || (currHeap->young_gen()->from_space()->capacity_in_bytes() != survivor_init))) && (counterA < 20 || counterB < 20))  {
+        currHeap->resize_old_gen(0);
+        currHeap->resize_young_gen(eden_init, survivor_init);
+        currHeap->collect(GCCause::_jvmti_force_gc);
+        if (nowA) {
+          nowA = false;
+          if (currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes() != b) {
+            b = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
+            counterB = 0;
+          } else {
+            counterB++;
+          }
+        } else {
+          nowA = true;
+          if (((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes() != a) {
+            a = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
+            counterA = 0;
+          } else {
+            counterA++;
+          }
+        }
+
+
+      }
+
+      FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, max_ratio);
+      FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, min_ratio);
       jlong t1 = os::javaTimeNanos();
 
       if (HotTubLog) {
