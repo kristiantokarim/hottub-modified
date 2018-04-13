@@ -5449,41 +5449,41 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CleanHotTubVM(char *hottubid) {
       FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, 1);
       FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, 1);
       ParallelScavengeHeap * currHeap = (ParallelScavengeHeap *)Universe::heap();
-      size_t a = currHeap->old_gen()->capacity_in_bytes() 
-      + currHeap->young_gen()->eden_space()->capacity_in_bytes() 
-      + currHeap->young_gen()->from_space()->capacity_in_bytes() 
-      + currHeap->young_gen()->to_space()->capacity_in_bytes();
-      size_t b = a;
-      bool nowA = false;
-      int counterA = 0;
-      int counterB = 0;
-      while ((((currHeap->old_gen()->capacity_in_bytes() != old_init )
-        || (currHeap->young_gen()->eden_space()->capacity_in_bytes() != eden_init) 
-        || (currHeap->young_gen()->to_space()->capacity_in_bytes() != survivor_init)
-        || (currHeap->young_gen()->from_space()->capacity_in_bytes() != survivor_init))) && (counterA < 20 || counterB < 20))  {
-        currHeap->resize_old_gen(0);
-        currHeap->resize_young_gen(eden_init, survivor_init);
-        currHeap->collect(GCCause::_jvmti_force_gc);
-        if (nowA) {
-          nowA = false;
-          if (currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes() != b) {
-            b = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
-            counterB = 0;
-          } else {
-            counterB++;
-          }
-        } else {
-          nowA = true;
-          if (((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes() != a) {
-            a = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
-            counterA = 0;
-          } else {
-            counterA++;
-          }
-        }
+      // size_t a = currHeap->old_gen()->capacity_in_bytes() 
+      // + currHeap->young_gen()->eden_space()->capacity_in_bytes() 
+      // + currHeap->young_gen()->from_space()->capacity_in_bytes() 
+      // + currHeap->young_gen()->to_space()->capacity_in_bytes();
+      // size_t b = a;
+      // bool nowA = false;
+      // int counterA = 0;
+      // int counterB = 0;
+      currHeap->collect(GCCause::_jvmti_force_gc);
+      // while ((((currHeap->old_gen()->capacity_in_bytes() != old_init )
+      //   || (currHeap->young_gen()->eden_space()->capacity_in_bytes() != eden_init) 
+      //   || (currHeap->young_gen()->to_space()->capacity_in_bytes() != survivor_init)
+      //   || (currHeap->young_gen()->from_space()->capacity_in_bytes() != survivor_init))) && (counterA < 20 || counterB < 20))  {
+      //   currHeap->resize_old_gen(0);
+      //   currHeap->resize_young_gen(eden_init, survivor_init);
+      //   if (nowA) {
+      //     nowA = false;
+      //     if (currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes() != b) {
+      //       b = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
+      //       counterB = 0;
+      //     } else {
+      //       counterB++;
+      //     }
+      //   } else {
+      //     nowA = true;
+      //     if (((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes() != a) {
+      //       a = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
+      //       counterA = 0;
+      //     } else {
+      //       counterA++;
+      //     }
+      //   }
 
 
-      }
+      // }
 
       FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, max_ratio);
       FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, min_ratio);
