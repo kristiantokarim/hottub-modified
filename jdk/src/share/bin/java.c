@@ -598,7 +598,6 @@ JavaMain(void * _args)
             int jvmfd;
             int clientfd;
             int oldfd[3] = { 0 };
-
             if ((jvmfd = listen_sock(hottubid)) == -1) {
                 ret = 1;
                 break;
