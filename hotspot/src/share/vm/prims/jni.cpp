@@ -5380,6 +5380,53 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_InitHotTubVM(jint run_num) {
   } 
 }
 
+_JNI_IMPORT_OR_EXPORT_ void JNICALL JNI_ShrinkHotTubVM() {
+   tty->print("enter\n");
+      int max_ratio = MaxHeapFreeRatio;
+      int min_ratio = MinHeapFreeRatio;
+      FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, 1);
+      FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, 1);
+      ParallelScavengeHeap * currHeap = (ParallelScavengeHeap *)Universe::heap();
+      currHeap->resize_old_gen(0);
+      size_t a = currHeap->old_gen()->capacity_in_bytes()  + currHeap->young_gen()->eden_space()->capacity_in_bytes()   + currHeap->young_gen()->from_space()->capacity_in_bytes()     + currHeap->young_gen()->to_space()->capacity_in_bytes();
+      size_t b = a;
+      bool nowA = false;
+      int counterA = 0;
+      int counterB = 0;
+
+
+	while (counterA < 3 || counterB < 3) {
+        currHeap->resize_young_gen(eden_init, survivor_init);
+        currHeap->collect(GCCause::_jvmti_force_gc) ;
+        if (nowA) {
+          nowA = false;
+          if (currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes() != b) {
+
+            b = currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes();
+
+            counterB = 0;
+
+          } else {
+            counterB++;
+          }
+        } else {
+          nowA = true;
+          if (currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes() != a) {
+
+            a = currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes();
+
+            counterA = 0;
+          } else {
+            counterA++;
+          }
+        }
+}
+
+	FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, max_ratio);
+      FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, min_ratio);
+}
+
+
 _JNI_IMPORT_OR_EXPORT_ jboolean JNICALL JNI_IsHotTubVM() {
   return hottub ? 1 : 0;
 }
@@ -5444,49 +5491,8 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CleanHotTubVM(char *hottubid) {
       }
 
       jlong t0 = os::javaTimeNanos();
-      int max_ratio = MaxHeapFreeRatio;
-      int min_ratio = MinHeapFreeRatio;
-      FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, 1);
-      FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, 1);
-      ParallelScavengeHeap * currHeap = (ParallelScavengeHeap *)Universe::heap();
-      size_t a = currHeap->old_gen()->capacity_in_bytes() 
-      + currHeap->young_gen()->eden_space()->capacity_in_bytes() 
-      + currHeap->young_gen()->from_space()->capacity_in_bytes() 
-      + currHeap->young_gen()->to_space()->capacity_in_bytes();
-      size_t b = a;
-      bool nowA = false;
-      int counterA = 0;
-      int counterB = 0;
-      currHeap->collect(GCCause::_jvmti_force_gc);
-      while (counterA < 2 || counterB < 2) {
-        currHeap->resize_old_gen(0);
-        currHeap->resize_young_gen(eden_init, survivor_init);
-        currHeap->collect(GCCause::_jvmti_force_gc);
-        if (nowA) {
-          nowA = false;
-          if (currHeap->old_gen()->capacity_in_bytes() + currHeap->young_gen()->eden_space()->capacity_in_bytes() + currHeap->young_gen()->from_space()->capacity_in_bytes() + currHeap->young_gen()->to_space()->capacity_in_bytes() != b) {
-            b = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
-            counterB = 0;
-          } else {
-            counterB++;
-          }
-        } else {
-          nowA = true;
-          if (((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes() != a) {
-            a = ((ParallelScavengeHeap *)Universe::heap())->old_gen()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->eden_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->from_space()->capacity_in_bytes() + ((ParallelScavengeHeap *)Universe::heap())->young_gen()->to_space()->capacity_in_bytes();  
-            counterA = 0;
-          } else {
-            counterA++;
-          }
-        }
-
-
-      }
-
-      FLAG_SET_CMDLINE(uintx, MaxHeapFreeRatio, max_ratio);
-      FLAG_SET_CMDLINE(uintx, MinHeapFreeRatio, min_ratio);
-      jlong t1 = os::javaTimeNanos();
-
+ ParallelScavengeHeap * currHeap = (ParallelScavengeHeap *)Universe::heap();
+    currHeap->collect(GCCause::_jvmti_force_gc);
       if (HotTubLog) {
         tty->print("[hottub][info][JNI_CleanHotTubVM] after gc heap->print "
             "(time = %luns)\n", t1 - t0);

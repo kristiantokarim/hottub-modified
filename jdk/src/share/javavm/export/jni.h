@@ -1950,6 +1950,10 @@ JNI_CleanHotTubVM(char *hottubid);
 _JNI_IMPORT_OR_EXPORT_ jint JNICALL
 JNI_WaitTillLastThread();
 
+_JNI_IMPORT_OR_EXPORT_ void JNICALL
+JNI_ShrinkHotTubVM();
+
+
 /* Defined by native libraries. */
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved);

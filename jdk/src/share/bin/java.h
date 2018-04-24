@@ -86,6 +86,8 @@ typedef jint (JNICALL *GetRetVal_t)();
 typedef void (JNICALL *SetRetVal_t)(jint);
 typedef jint (JNICALL *InitHotTubVM_t)(jint);
 typedef jint (JNICALL *CleanHotTubVM_t)(char *);
+typedef jboolean (JNICALL *ShrinkHotTubVM_t)();
+
 
 typedef struct {
     CreateJavaVM_t CreateJavaVM;
@@ -98,6 +100,7 @@ typedef struct {
     SetRetVal_t SetRetVal;
     CleanHotTubVM_t CleanHotTubVM;
     InitHotTubVM_t InitHotTubVM;
+    ShrinkHotTubVM_t ShrinkHotTubVM;
 } InvocationFunctions;
 
 int

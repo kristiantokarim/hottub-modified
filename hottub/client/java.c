@@ -118,6 +118,7 @@ int run_hottub(char *id, args_info *args, char** envp)
     sprintf(jvmpath, "%s%s", datapath, id);
 
     int poolno;
+    int is_dead = 0;
     for (poolno = 0; poolno < jvm_max_pool; poolno++) {
         int error;
         int try_connect = 0;
@@ -133,7 +134,7 @@ int run_hottub(char *id, args_info *args, char** envp)
          * b. if EEXIST then try and connect to the existing server
          */
         pid_t pid;
-        if (mkdir(jvmpath, 0775) == 0) {
+        if (mkdir(jvmpath, 0775) == 0 || is_dead) {
             pid = fork();
             if (pid == 0) {
                 setsid();
@@ -147,6 +148,7 @@ int run_hottub(char *id, args_info *args, char** envp)
                 create_pid_file(SERVER, pid);
                 try_connect = 1;
                 is_parent = 1;
+		is_dead = 0;
             }
         } else if (errno == EEXIST) {
             pid = get_server_pid();
@@ -185,12 +187,16 @@ int run_hottub(char *id, args_info *args, char** envp)
             if (jvmfd <= 0) {
                 fprintf(stderr, "[hottub][info][client run_hottub] failed id %s\n", id);
                 remove_pid_file(CLIENT);
+	        remove_pid_file(SERVER);
+		poolno--;
+		is_dead = 1;
                 continue;
             }
 
             // TODO signal handling is tricky should revisit......
             connected = 1;
-
+		int pp =16;
+		write_sock(jvmfd, &pp, sizeof(int));
             error = send_fds(jvmfd);
             if (error == -2) {
                 close(jvmfd);
@@ -640,7 +646,7 @@ int connect_sock(const char *path)
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
     addr.sun_path[0] = '\0';
-
+    fprintf(stderr, "path %s\n", addr.sun_path);
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         close(fd);
         return -1;

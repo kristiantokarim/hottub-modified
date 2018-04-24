@@ -962,6 +962,13 @@ LoadJavaVM(const char *jvmpath, InvocationFunctions *ifn)
         JLI_ReportErrorMessage(DLL_ERROR2, jvmpath, dlerror());
         return JNI_FALSE;
     }
+	
+    ifn->ShrinkHotTubVM = (ShrinkHotTubVM_t)
+        dlsym(libjvm, "JNI_ShrinkHotTubVM");
+    if (ifn->ShrinkHotTubVM == NULL) {
+        JLI_ReportErrorMessage(DLL_ERROR2, jvmpath, dlerror());
+        return JNI_FALSE;
+    }
 
     return JNI_TRUE;
 }

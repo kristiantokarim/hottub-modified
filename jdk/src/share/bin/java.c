@@ -56,7 +56,7 @@
 // hottub
 #include <sys/un.h>
 #include <sys/socket.h>
-
+#include <time.h>
 /*
  * A NOTE TO DEVELOPERS: For performance reasons it is important that
  * the program image remain relatively small until after SelectVersion
@@ -458,16 +458,28 @@ ssize_t write_sock(int fd, void *ptr, size_t nbytes)
     return sendmsg(fd, &msg, 0);
 }
 
+InvocationFunctions *ifn2;
+void gc_sig_handler(int signo){
+
+    if (signo == SIGUSR1) {
+	ifn2->ShrinkHotTubVM();
+    }  
+}
+
 int JNICALL
 JavaMain(void * _args)
 {
+    clock_t tic, toc;
+    struct timespec tic1, toc1;
+    clock_gettime(CLOCK_MONOTONIC, &tic1);
+    tic = clock();
     JavaMainArgs *args = (JavaMainArgs *)_args;
     int argc = args->argc;
     char **argv = args->argv;
     int mode = args->mode;
     char *what = args->what;
     InvocationFunctions ifn = args->ifn;
-
+    ifn2 = &ifn;
     JavaVM *vm = 0;
     JNIEnv *env = 0;
     jclass mainClass = NULL;
@@ -591,7 +603,7 @@ JavaMain(void * _args)
 
     if (hottubid[0] != '\0') {
         int run_num = 0;
-
+        fprintf(stderr, "%d", signal(SIGUSR1, gc_sig_handler));
         do {
             /* 1. wait for a request */
             /* close listening socket when doing a run so new clients go to next jvm */
@@ -610,7 +622,20 @@ JavaMain(void * _args)
                 continue;
             }
             close(jvmfd);
-
+	    if (run_num) {
+		    tic = clock();
+		    clock_gettime(CLOCK_MONOTONIC, &tic1);
+	    }
+            int check;
+ 	    if (read_sock(clientfd, &check, sizeof(int)) > 0) {
+		if (check == 13873) {
+			fprintf(stderr,"kasus khusus\n");
+			ifn.ShrinkHotTubVM();
+			close(clientfd);
+			continue;
+		}
+	    }
+            
             /* 2. fixup file descriptors */
             int error = 0;
             while(!error) {
@@ -871,6 +896,10 @@ JavaMain(void * _args)
                         "reading end got %d bytes (expected 0)\n", read_ret);
                 }
             }
+	    toc = clock();
+	    clock_gettime(CLOCK_MONOTONIC, &toc1);
+	    fprintf(stderr, "[iti] cpu time : %lf s\n", ((double) (toc - tic)) / CLOCKS_PER_SEC);
+	    fprintf(stderr, "[iti] clock time : %lf s\n", ((double) (1e9 * (toc1.tv_sec - tic1.tv_sec) + toc1.tv_nsec - tic1.tv_nsec)) / 1e9);
 
             /* 4. clean up jvm */
             close(clientfd);
@@ -899,6 +928,7 @@ JavaMain(void * _args)
         } while (JNI_TRUE /*ret == 0*/);
     } else {
         /* Build platform specific argument array */
+	
         mainArgs = CreateApplicationArgs(env, argv, argc);
         CHECK_EXCEPTION_NULL_LEAVE(mainArgs);
 
@@ -912,6 +942,10 @@ JavaMain(void * _args)
          * System.exit) will be non-zero if main threw an exception.
          */
         ret = (*env)->ExceptionOccurred(env) == NULL ? 0 : 1;
+	toc = clock();
+        clock_gettime(CLOCK_MONOTONIC, &toc1);
+        fprintf(stderr, "[iti] cpu time : %lf s\n", ((double) (toc - tic)) / CLOCKS_PER_SEC);
+        fprintf(stderr, "[iti] clock time : %lf s\n", ((double) (1e9 * (toc1.tv_sec - tic1.tv_sec) + toc1.tv_nsec - tic1.tv_nsec)) / 1e9);
     }
     LEAVE();
 }

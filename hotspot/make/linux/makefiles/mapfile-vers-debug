@@ -38,6 +38,7 @@ SUNWprivate_1.1 {
                 JNI_InitHotTubVM;
                 JNI_CleanHotTubVM;
                 JNI_IsHotTubVM;
+		JNI_ShrinkHotTubVM;
 
                 # JVM
                 JVM_BdelGetBlockingCompileTime;
