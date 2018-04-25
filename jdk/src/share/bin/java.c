@@ -49,7 +49,18 @@
  * ParseArguments will remove the -d<n> flags. If the data models do not match
  * the CreateExecutionEnviroment will remove the -d<n> flags.
  */
+// blindly add
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <sys/poll.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <errno.h>
+
+// end of blindly add
 
 #include "java.h"
 #include <sys/time.h> // for clocking jvm init time
@@ -614,6 +625,20 @@ JavaMain(void * _args)
                 ret = 1;
                 break;
             }
+	    struct pollfd fds[1];
+	    int timeout, rc;
+	    int nfds = 1;
+
+	    memset(fds, 0, sizeof(fds));
+	    fds[0].fd = jvmfd;
+	    fds[0].events = POLLIN;
+	    timeout = 1 * 20 * 1000;
+	    do {
+		rc = poll(fds, nfds, timeout);
+		if (rc == 0) exit(0);
+		if (fds[0].fd == jvmfd) break;
+	    } while(1);
+
             if ((clientfd = accept(jvmfd, NULL, NULL)) == -1) {
                 fprintf(stderr, "[hottub][error][bin JavaMain] accept | id = %s | errno = %s\n",
                         hottubid, strerror(errno));
