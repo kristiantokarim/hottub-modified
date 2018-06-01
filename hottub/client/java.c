@@ -135,6 +135,7 @@ int run_hottub(char *id, args_info *args, char** envp)
          */
         pid_t pid;
         if (mkdir(jvmpath, 0775) == 0 || is_dead) {
+	    create_pid_file(CLIENT, getpid());
             pid = fork();
             if (pid == 0) {
                 setsid();
@@ -143,7 +144,7 @@ int run_hottub(char *id, args_info *args, char** envp)
                 //       have same std* fds
                 return exec_jvm(id, args->argc, args->argv);
             } else {
-                create_pid_file(CLIENT, getpid());
+                // create_pid_file(CLIENT, getpid());
                 setup_signal_handling(pid);
                 create_pid_file(SERVER, pid);
                 try_connect = 1;
